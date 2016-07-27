@@ -18,16 +18,13 @@ namespace ThreadPoolTest2
             long multiplier = 10;
             if (args.Length > 0)
             {
-                if (long.TryParse(args[0], out multiplier))
-                {
-                    limit *= multiplier;
-                }
-                else
+                if (!long.TryParse(args[0], out multiplier))
                 {
                     Console.WriteLine($"Please use an integer multiplier for ({limit} * multiplier) calls");
                     return;
                 }
             }
+            limit *= multiplier;
 
             int batch = 512 * 512;
 
@@ -56,6 +53,7 @@ namespace ThreadPoolTest2
 
             await TestSetAsync("QUWI No Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
             await TestSetAsync("SubTasks", (d, l) => SubTaskChain(d, l), batch, limit, sw);
+            await TestSetAsync("SubTasks Awaited", (d, l) => SubTaskAwaitedChain(d, l), batch, limit, sw);
             await TestSetAsync("QUWI Local Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
             await TestSetAsync("Yielding Await", (d, l) => YieldingAwaitChain(d, l), batch, limit, sw);
             await TestSetAsync("Async Awaited", (d, l) => AsyncAwaitedChain(d, l), batch, limit, sw);
@@ -294,10 +292,30 @@ namespace ThreadPoolTest2
         {
             if (depth == 0)
             {
-                return Task.CompletedTask;
+                return Task.Run(() => Task.CompletedTask);
             }
 
             return Task.Run(() => SubTaskAsync(depth - 1));
+        }
+
+        private static async Task SubTaskAwaitedChain(int depth, long count)
+        {
+            var total = count / depth;
+            for (var i = 0L; i < total; i++)
+            {
+                await SubTaskAwaitedAsync(depth - 1);
+            }
+        }
+
+        private async static Task SubTaskAwaitedAsync(int depth)
+        {
+            if (depth == 0)
+            {
+                await Task.Run(() => Task.CompletedTask);
+                return;
+            }
+
+            await Task.Run(() => SubTaskAwaitedAsync(depth - 1));
         }
 
         // Testing stuff
