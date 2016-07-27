@@ -15,9 +15,9 @@ namespace ThreadPoolTest2
             Console.WriteLine();
 
             long limit = 512 * 512;
+            long multiplier = 10;
             if (args.Length > 0)
             {
-                long multiplier;
                 if (long.TryParse(args[0], out multiplier))
                 {
                     limit *= multiplier;
