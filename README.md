@@ -1,5 +1,7 @@
 # Thread Pool + Task Testing
 
+To support investigation on PR https://github.com/dotnet/coreclr/pull/5943
+
 To run
 
 Install [.NET Core](https://dot.net/)
