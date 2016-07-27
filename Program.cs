@@ -54,7 +54,9 @@ namespace ThreadPoolTest2
             }
             Console.WriteLine();
 
-            await TestSetAsync("QUWI", (d, l) => QUWICallChain(d, l), batch, limit, sw);
+            await TestSetAsync("QUWI No Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
+            await TestSetAsync("SubTasks", (d, l) => SubTaskChain(d, l), batch, limit, sw);
+            await TestSetAsync("QUWI Local Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
             await TestSetAsync("Yielding Await", (d, l) => YieldingAwaitChain(d, l), batch, limit, sw);
             await TestSetAsync("Async Awaited", (d, l) => AsyncAwaitedChain(d, l), batch, limit, sw);
             await TestSetAsync("Async PassThrough", (d, l) => AsyncPassThroughChain(d, l), batch, limit, sw);
@@ -186,6 +188,7 @@ namespace ThreadPoolTest2
 
             await CachedTaskAwaitedAsync(depth - 1);
         }
+
         private static async Task CachedTaskCheckAwaitChain(int depth, long count)
         {
             var total = count / depth;
@@ -276,6 +279,25 @@ namespace ThreadPoolTest2
         private static async Task TaskAwaited(Task task)
         {
             await task;
+        }
+
+        private static async Task SubTaskChain(int depth, long count)
+        {
+            var total = count / depth;
+            for (var i = 0L; i < total; i++)
+            {
+                await SubTaskAsync(depth - 1);
+            }
+        }
+
+        private static Task SubTaskAsync(int depth)
+        {
+            if (depth == 0)
+            {
+                return Task.CompletedTask;
+            }
+
+            return Task.Run(() => SubTaskAsync(depth - 1));
         }
 
         // Testing stuff
