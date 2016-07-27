@@ -1,6 +1,6 @@
 # Thread Pool + Task Testing
 
-To support investigation on PR https://github.com/dotnet/coreclr/pull/5943
+To support investigation on PR [https://github.com/dotnet/coreclr/pull/5943](https://github.com/dotnet/coreclr/pull/5943#issuecomment-235444173)
 
 To run
 
