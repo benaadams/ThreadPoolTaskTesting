@@ -1,0 +1,7 @@
+project.lock.json
+ThreadPoolTest2.xproj.user
+*.suo
+bin/
+obj/
+Properties/AssemblyInfo.cs
+*.user
