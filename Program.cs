@@ -53,18 +53,18 @@ namespace ThreadPoolTest2
             Console.WriteLine();
 
             await TestSetAsync("QUWI No Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
-            await TestSetAsync("SubTasks", (d, l) => SubTaskChain(d, l), batch, limit, sw);
-            await TestSetAsync("SubTasks Awaited", (d, l) => SubTaskAwaitedChain(d, l), batch, limit, sw);
-            await TestSetAsync("SubTasks Fanout", (d, l) => SubTaskFanout(d, l), batch, limit, sw);
+            await TestSetAsync("SubTask Chain Return", (d, l) => SubTaskChain(d, l), batch, limit, sw);
+            await TestSetAsync("SubTask Chain Awaited", (d, l) => SubTaskAwaitedChain(d, l), batch, limit, sw);
+            await TestSetAsync("SubTask Fanout", (d, l) => SubTaskFanout(d, l), batch, limit, sw);
             await TestSetAsync("Continuation Chain", (d, l) => ContinuationChain(d, l), batch, limit, sw);
             await TestSetAsync("Continuation Fanout", (d, l) => ContinuationFanout(d, l), batch, limit, sw);
             await TestSetAsync("Yielding Await", (d, l) => YieldingAwaitChain(d, l), batch, limit, sw);
             await TestSetAsync("Async Awaited", (d, l) => AsyncAwaitedChain(d, l), batch, limit, sw);
-            await TestSetAsync("Async PassThrough", (d, l) => AsyncPassThroughChain(d, l), batch, limit, sw);
+            await TestSetAsync("Async Return", (d, l) => AsyncPassThroughChain(d, l), batch, limit, sw);
             await TestSetAsync("Completed Awaited", (d, l) => CompletedAwaitedChain(d, l), batch, limit, sw);
             await TestSetAsync("CachedTask Awaited", (d, l) => CachedTaskAwaitedChain(d, l), batch, limit, sw);
             await TestSetAsync("CachedTask CheckAwait", (d, l) => CachedTaskCheckAwaitChain(d, l), batch, limit, sw);
-            await TestSetAsync("CachedTask PassThrough", (d, l) => CachedTaskPassThroughChain(d, l), batch, limit, sw);
+            await TestSetAsync("CachedTask Return", (d, l) => CachedTaskPassThroughChain(d, l), batch, limit, sw);
             await TestSetAsync("QUWI Local Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
 
         }
