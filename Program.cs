@@ -9,7 +9,7 @@ namespace ThreadPoolTest2
     public class Program
     {
         static int[] dopSet = { 1, 2, 16, 64, 512 };
-        const int Column1 = 22;
+        const int Column1 = 23;
 
         public static void Main(string[] args)
         {
@@ -52,20 +52,20 @@ namespace ThreadPoolTest2
             }
             Console.WriteLine();
 
-            await TestSetAsync("QUWI No Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
-            await TestSetAsync("SubTask Chain Return", (d, l) => SubTaskChain(d, l), batch, limit, sw);
-            await TestSetAsync("SubTask Chain Awaited", (d, l) => SubTaskAwaitedChain(d, l), batch, limit, sw);
-            await TestSetAsync("SubTask Fanout", (d, l) => SubTaskFanout(d, l), batch, limit, sw);
-            await TestSetAsync("Continuation Chain", (d, l) => ContinuationChain(d, l), batch, limit, sw);
-            await TestSetAsync("Continuation Fanout", (d, l) => ContinuationFanout(d, l), batch, limit, sw);
-            await TestSetAsync("Yielding Await", (d, l) => YieldingAwaitChain(d, l), batch, limit, sw);
-            await TestSetAsync("Async Awaited", (d, l) => AsyncAwaitedChain(d, l), batch, limit, sw);
-            await TestSetAsync("Async Return", (d, l) => AsyncPassThroughChain(d, l), batch, limit, sw);
-            await TestSetAsync("Completed Awaited", (d, l) => CompletedAwaitedChain(d, l), batch, limit, sw);
-            await TestSetAsync("CachedTask Awaited", (d, l) => CachedTaskAwaitedChain(d, l), batch, limit, sw);
-            await TestSetAsync("CachedTask CheckAwait", (d, l) => CachedTaskCheckAwaitChain(d, l), batch, limit, sw);
-            await TestSetAsync("CachedTask Return", (d, l) => CachedTaskPassThroughChain(d, l), batch, limit, sw);
-            await TestSetAsync("QUWI Local Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
+            await TestSetAsync("QUWI No Queues", (d, l) => QUWICallChainRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("SubTask Chain Return", (d, l) => SubTaskChainReturnRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("SubTask Chain Awaited", (d, l) => SubTaskChainAwaitedRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("SubTask Fanout Awaited", (d, l) => SubTaskFanoutAwaitedRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("Continuation Chain", (d, l) => ContinuationChainRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("Continuation Fanout", (d, l) => ContinuationFanoutRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("Yield Chain Awaited", (d, l) => YieldAwaitChainRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("Async Chain Awaited", (d, l) => AsyncChainAwaitedRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("Async Chain Return", (d, l) => AsyncChainReturnRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("Sync Chain Awaited", (d, l) => SyncChainAwaitedRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("CachedTask Chain Await", (d, l) => CachedTaskChainAwaitedRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("CachedTask Chain Check", (d, l) => CachedTaskChainCheckedRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("CachedTask Chain Return", (d, l) => CachedTaskChainReturnRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("QUWI Local Queues", (d, l) => QUWICallChainRepeat(d, l), batch, limit, sw);
 
         }
 
@@ -96,7 +96,7 @@ namespace ThreadPoolTest2
             if (c == 0) state.counter.semaphore.Release();
         }
 
-        private static Task QUWICallChain(int depth, long count)
+        private static Task QUWICallChainRepeat(int depth, long count)
         {
             var total = count / depth;
             var semaphore = new SemaphoreSlim(0);
@@ -132,16 +132,16 @@ namespace ThreadPoolTest2
             return semaphore.WaitAsync();
         }
 
-        private static async Task YieldingAwaitChain(int depth, long count)
+        private static async Task YieldAwaitChainRepeat(int depth, long count)
         {
             var total = count / depth;
             for (var i = 0L; i < total; i++)
             {
-                await YieldingAwait(depth - 1);
+                await YieldAwaitChain(depth - 1);
             }
         }
 
-        private async static Task YieldingAwait(int depth)
+        private async static Task YieldAwaitChain(int depth)
         {
             if (depth == 0)
             {
@@ -149,20 +149,39 @@ namespace ThreadPoolTest2
                 return;
             }
 
-            var t = YieldingAwait(depth - 1);
+            var t = YieldAwaitChain(depth - 1);
             await Task.Yield();
             await t;
         }
 
-        private static async Task CompletedAwaitedChain(int depth, long count)
+        private static async Task SyncChainAwaitedRepeat(int depth, long count)
         {
             var total = count / depth;
             for (var i = 0L; i < total; i++)
             {
-                await CompletedAwaited(depth - 1);
+                await SyncChainAwaited(depth - 1);
             }
         }
-        private async static Task CompletedAwaited(int depth)
+        private async static Task SyncChainAwaited(int depth)
+        {
+            if (depth == 0)
+            {
+                return;
+            }
+
+            await SyncChainAwaited(depth - 1);
+        }
+
+        private static async Task CachedTaskChainAwaitedRepeat(int depth, long count)
+        {
+            var total = count / depth;
+            for (var i = 0L; i < total; i++)
+            {
+                await CachedTaskChainAwaitedRepeat(depth - 1);
+            }
+        }
+
+        private static async Task CachedTaskChainAwaitedRepeat(int depth)
         {
             if (depth == 0)
             {
@@ -170,46 +189,26 @@ namespace ThreadPoolTest2
                 return;
             }
 
-            await CompletedAwaited(depth - 1);
+            await CachedTaskChainAwaitedRepeat(depth - 1);
         }
 
-        private static async Task CachedTaskAwaitedChain(int depth, long count)
+        private static async Task CachedTaskChainCheckedRepeat(int depth, long count)
         {
             var total = count / depth;
             for (var i = 0L; i < total; i++)
             {
-                await CachedTaskAwaitedAsync(depth - 1);
+                await CachedTaskChainChecked(depth - 1);
             }
         }
 
-        private static async Task CachedTaskAwaitedAsync(int depth)
-        {
-            if (depth == 0)
-            {
-                await Task.CompletedTask;
-                return;
-            }
-
-            await CachedTaskAwaitedAsync(depth - 1);
-        }
-
-        private static async Task CachedTaskCheckAwaitChain(int depth, long count)
-        {
-            var total = count / depth;
-            for (var i = 0L; i < total; i++)
-            {
-                await CachedTaskCheckAwait(depth - 1);
-            }
-        }
-
-        private static Task CachedTaskCheckAwait(int depth)
+        private static Task CachedTaskChainChecked(int depth)
         {
             if (depth == 0)
             {
                 return Task.CompletedTask;
             }
 
-            var task = CachedTaskCheckAwait(depth - 1);
+            var task = CachedTaskChainChecked(depth - 1);
             if (task.Status == TaskStatus.RanToCompletion)
             {
                 return task;
@@ -217,38 +216,38 @@ namespace ThreadPoolTest2
             return TaskAwaited(task);
         }
 
-        private static async Task CachedTaskPassThroughChain(int depth, long count)
+        private static async Task CachedTaskChainReturnRepeat(int depth, long count)
         {
             var total = count / depth;
             for (var i = 0L; i < total; i++)
             {
-                await CachedTaskPassThrough(depth - 1);
+                await CachedTaskChainReturn(depth - 1);
             }
         }
 
-        private static Task CachedTaskPassThrough(int depth)
+        private static Task CachedTaskChainReturn(int depth)
         {
             if (depth == 0)
             {
                 return Task.CompletedTask;
             }
 
-            return CachedTaskPassThrough(depth - 1);
+            return CachedTaskChainReturn(depth - 1);
         }
 
-        private async static Task AsyncAwaitedChain(int depth, long count)
+        private async static Task AsyncChainAwaitedRepeat(int depth, long count)
         {
             var total = count / depth;
             var semaphore = new SemaphoreSlim(0);
             for (var i = 0; i < total; i++)
             {
-                var t = AsyncAwaited(depth - 1, semaphore.WaitAsync());
+                var t = AsyncChainAwaited(depth - 1, semaphore.WaitAsync());
                 semaphore.Release();
                 await t;
             }
         }
 
-        private static async Task AsyncAwaited(long depth, Task task)
+        private static async Task AsyncChainAwaited(long depth, Task task)
         {
             if (depth == 0)
             {
@@ -256,55 +255,55 @@ namespace ThreadPoolTest2
                 return;
             }
 
-            await AsyncAwaited(depth - 1, task);
+            await AsyncChainAwaited(depth - 1, task);
         }
 
-        private async static Task AsyncPassThroughChain(int depth, long count)
+        private async static Task AsyncChainReturnRepeat(int depth, long count)
         {
             var total = count / depth;
             var semaphore = new SemaphoreSlim(0);
             for (var i = 0; i < total; i++)
             {
-                var t = AsyncPassThrough(depth - 1, semaphore.WaitAsync());
+                var t = AsyncChainReturn(depth - 1, semaphore.WaitAsync());
                 semaphore.Release();
                 await t;
             }
         }
 
-        private static Task AsyncPassThrough(long depth, Task task)
+        private static Task AsyncChainReturn(long depth, Task task)
         {
             if (depth == 0)
             {
                 return TaskAwaited(task);
             }
 
-            return AsyncPassThrough(depth - 1, task);
+            return AsyncChainReturn(depth - 1, task);
         }
         private static async Task TaskAwaited(Task task)
         {
             await task;
         }
 
-        private static async Task SubTaskChain(int depth, long count)
+        private static async Task SubTaskChainReturnRepeat(int depth, long count)
         {
             var total = count / depth;
             for (var i = 0L; i < total; i++)
             {
-                await SubTaskAsync(depth - 1);
+                await SubTaskChainAwaited(depth - 1);
             }
         }
 
-        private static Task SubTaskAsync(int depth)
+        private static Task SubTaskChainAwaited(int depth)
         {
             if (depth == 0)
             {
                 return Task.Run(() => Task.CompletedTask);
             }
 
-            return Task.Run(() => SubTaskAsync(depth - 1));
+            return Task.Run(() => SubTaskChainAwaited(depth - 1));
         }
 
-        private static async Task SubTaskAwaitedChain(int depth, long count)
+        private static async Task SubTaskChainAwaitedRepeat(int depth, long count)
         {
             var total = count / depth;
             for (var i = 0L; i < total; i++)
@@ -324,17 +323,17 @@ namespace ThreadPoolTest2
             await Task.Run(() => SubTaskAwaitedAsync(depth - 1));
         }
 
-        private static async Task SubTaskFanout(int depth, long count)
+        private static async Task SubTaskFanoutAwaitedRepeat(int depth, long count)
         {
             var total = count / depth;
             for (var i = 0L; i < total; i++)
             {
-                await SubTaskFanoutAsync(depth);
+                await SubTaskFanoutAwaited(depth);
             }
         }
 
         static Func<Task> YieldAction = async () => await Task.Yield();
-        private async static Task SubTaskFanoutAsync(int depth)
+        private async static Task SubTaskFanoutAwaited(int depth)
         {
             var tasks = new Task[depth];
 
@@ -346,16 +345,16 @@ namespace ThreadPoolTest2
             await Task.WhenAll(tasks);
         }
 
-        private static async Task ContinuationChain(int depth, long count)
+        private static async Task ContinuationChainRepeat(int depth, long count)
         {
             var total = count / depth;
             for (var i = 0L; i < total; i++)
             {
-                await ContinuationChainAsync(depth);
+                await ContinuationChain(depth);
             }
         }
 
-        private static Task ContinuationChainAsync(int depth)
+        private static Task ContinuationChain(int depth)
         {
             var task = Task.Run(YieldAction);
 
@@ -367,16 +366,16 @@ namespace ThreadPoolTest2
             return task;
         }
 
-        private static async Task ContinuationFanout(int depth, long count)
+        private static async Task ContinuationFanoutRepeat(int depth, long count)
         {
             var total = count / depth;
             for (var i = 0L; i < total; i++)
             {
-                await ContinuationFanoutAsync(depth);
+                await ContinuationFanout(depth);
             }
         }
 
-        private async static Task ContinuationFanoutAsync(int depth)
+        private async static Task ContinuationFanout(int depth)
         {
             var tasks = new Task[depth];
             var task = Task.Run(YieldAction);

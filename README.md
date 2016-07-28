@@ -1,6 +1,8 @@
 # Thread Pool + Task Testing
 
-To support investigation on PR [https://github.com/dotnet/coreclr/pull/5943](https://github.com/dotnet/coreclr/pull/5943#issuecomment-235444173)
+**Note:** This is for before + after testing, rather than a rigorous algorithm choice comparision.
+
+Supporting investigation on PR [https://github.com/dotnet/coreclr/pull/5943](https://github.com/dotnet/coreclr/pull/5943#issuecomment-235444173)
 
 To run
 
@@ -16,69 +18,87 @@ Testing 2,621,440 calls, with GCs after 262,144 calls.
 Operations per second on 4 Cores
                                                                        Parallelism
                             Serial          2x         16x         64x        512x
-QUWI No Queues            11.341 M    11.174 M    10.152 M    11.781 M    12.343 M
-- Depth    2               9.693 M     8.577 M     9.161 M     9.611 M     9.820 M
-- Depth   16               9.843 M     9.975 M    10.215 M    10.185 M    10.193 M
-- Depth   64              10.212 M    10.361 M    10.344 M    10.275 M    10.187 M
-- Depth  512              10.043 M    10.564 M    10.346 M    10.379 M    10.262 M
-
-SubTasks                 574.384 k     1.074 M     3.925 M     3.786 M     4.059 M
-- Depth    2             481.115 k     1.235 M     3.764 M     4.307 M     4.376 M
-- Depth   16             281.681 k     1.054 M     2.196 M     3.694 M     4.601 M
-- Depth   64             357.318 k     1.542 M     3.332 M     3.548 M     4.464 M
-- Depth  512             292.159 k     1.386 M     4.184 M     4.770 M     5.010 M
-
-SubTasks Awaited         434.887 k   748.854 k     2.325 M     2.367 M     2.467 M
-- Depth    2             415.744 k   600.544 k     2.227 M     2.415 M     2.687 M
-- Depth   16             378.693 k   763.114 k     2.496 M     2.715 M     2.891 M
-- Depth   64             443.539 k   884.953 k     2.516 M     2.909 M     2.900 M
-- Depth  512             501.711 k   769.023 k     2.557 M     2.530 M     2.749 M
-
-QUWI Local Queues         11.488 M    11.030 M    10.052 M    12.056 M    12.653 M
-- Depth    2               9.872 M     8.931 M     9.237 M     9.596 M     9.752 M
-- Depth   16              10.307 M    10.046 M    10.144 M    10.177 M    10.133 M
-- Depth   64              10.219 M    10.241 M    10.382 M    10.343 M    10.206 M
-- Depth  512              10.221 M    10.278 M    10.355 M    10.426 M    10.399 M
-
-Yielding Await           690.483 k     1.453 M     3.996 M     3.978 M     4.145 M
-- Depth    2               1.046 M     2.291 M     5.418 M     5.231 M     5.371 M
-- Depth   16               2.892 M     6.241 M     8.013 M     7.701 M     7.514 M
-- Depth   64               3.534 M     6.442 M     7.756 M     8.239 M     8.216 M
-- Depth  512               4.095 M     8.082 M     4.013 M     8.205 M     7.461 M
-
-Async Awaited            589.227 k   837.691 k     3.116 M     3.267 M     3.405 M
-- Depth    2             966.724 k     1.462 M     4.292 M     4.625 M     4.800 M
-- Depth   16               1.822 M     3.702 M     7.929 M     8.070 M     7.890 M
-- Depth   64               2.023 M     4.261 M     8.501 M     8.494 M     8.368 M
-- Depth  512               2.205 M     4.481 M     6.615 M     6.473 M     8.280 M
-
-Async PassThrough        544.464 k   837.542 k     2.882 M     2.994 M     3.313 M
-- Depth    2               1.118 M     1.519 M     6.179 M     6.482 M     6.475 M
-- Depth   16               6.413 M    10.819 M    46.852 M    50.872 M    48.595 M
-- Depth   64              36.737 M    35.197 M   199.140 M   193.693 M   154.588 M
-- Depth  512             249.680 M   172.013 M     1.071 B   931.372 M   537.775 M
-
-Completed Awaited         23.509 M    46.841 M    84.602 M    84.865 M    82.628 M
-- Depth    2              25.976 M    51.338 M    96.914 M    98.113 M    94.354 M
-- Depth   16              20.073 M    40.692 M    74.357 M    73.212 M    72.994 M
-- Depth   64              18.895 M    37.712 M    68.149 M    70.442 M    68.025 M
-- Depth  512              18.814 M    37.104 M    68.433 M    66.401 M    66.533 M
-
-CachedTask Awaited        23.695 M    48.631 M    88.577 M    87.729 M    86.142 M
-- Depth    2              25.947 M    52.404 M    96.651 M    98.538 M    91.645 M
-- Depth   16              20.278 M    40.970 M    71.835 M    75.324 M    71.259 M
-- Depth   64              19.130 M    38.238 M    71.216 M    70.784 M    66.113 M
-- Depth  512              18.269 M    37.174 M    65.379 M    66.674 M    65.857 M
-
-CachedTask CheckAwait    113.468 M   224.028 M   420.601 M   427.425 M   358.689 M
-- Depth    2             137.860 M   267.923 M   497.502 M   473.278 M   390.368 M
-- Depth   16             153.004 M   301.291 M   483.723 M   565.575 M   423.393 M
-- Depth   64              89.841 M   177.891 M   342.327 M   334.670 M   268.282 M
-- Depth  512              81.141 M   161.585 M   276.226 M   285.728 M   249.839 M
-
-CachedTask PassThrough   117.638 M   233.357 M   380.426 M   444.643 M   355.503 M
-- Depth    2             198.782 M   390.799 M   694.145 M   647.941 M   490.126 M
-- Depth   16             570.498 M     1.087 B     1.872 B     1.773 B   904.662 M
-- Depth   64             947.942 M     1.776 B     2.764 B     2.412 B     1.095 B
-- Depth  512               1.427 B     2.616 B     3.766 B     3.236 B     1.220 B
+QUWI No Queues             11.065 M    10.939 M    10.258 M    12.078 M    12.581 M
+- Depth    2                9.903 M     8.503 M     9.129 M     9.345 M     9.706 M
+- Depth   16               10.144 M     9.990 M    10.221 M    10.138 M    10.046 M
+- Depth   64                9.911 M    10.285 M    10.337 M    10.403 M    10.360 M
+- Depth  512               10.066 M    10.138 M    10.434 M    10.408 M    10.309 M
+                       
+SubTask Chain Return      557.770 k   997.956 k     4.118 M     4.265 M     4.433 M
+- Depth    2              551.729 k     1.143 M     4.101 M     4.600 M     4.817 M
+- Depth   16              323.886 k   796.379 k     3.834 M     4.121 M     5.469 M
+- Depth   64              469.299 k     1.185 M     2.585 M     4.922 M     5.278 M
+- Depth  512              361.030 k     1.519 M     3.207 M     4.480 M     5.580 M
+                       
+SubTask Chain Awaited     479.992 k   834.897 k     2.579 M     2.533 M     2.841 M
+- Depth    2              472.915 k   848.899 k     2.476 M     2.889 M     2.949 M
+- Depth   16              479.326 k     1.150 M     2.783 M     2.715 M     3.288 M
+- Depth   64              532.761 k     1.244 M     2.719 M     3.260 M     3.339 M
+- Depth  512              488.210 k   941.299 k     2.713 M     2.890 M     2.999 M
+                       
+SubTask Fanout Awaited    242.850 k   465.681 k     1.557 M     1.573 M     1.594 M
+- Depth    2              308.711 k   914.097 k     1.779 M     1.948 M     1.988 M
+- Depth   16                1.546 M     2.448 M     2.733 M     2.755 M     2.668 M
+- Depth   64                1.950 M     2.604 M     2.883 M     2.899 M     2.877 M
+- Depth  512                2.221 M     2.732 M     2.991 M     2.979 M     2.883 M
+                       
+Continuation Chain        122.725 k   468.872 k     1.545 M     1.692 M     1.690 M
+- Depth    2              215.449 k   487.005 k     2.534 M     2.797 M     2.904 M
+- Depth   16              353.085 k     1.499 M     7.306 M     7.427 M     7.338 M
+- Depth   64              773.903 k     2.700 M     8.688 M     8.322 M     8.626 M
+- Depth  512              738.323 k     3.582 M     9.351 M     9.348 M     8.937 M
+                       
+Continuation Fanout       115.174 k   320.221 k     1.216 M     1.247 M     1.248 M
+- Depth    2              209.837 k   711.798 k     1.882 M     1.837 M     1.954 M
+- Depth   16              963.554 k     2.907 M     4.473 M     4.468 M     4.254 M
+- Depth   64                1.884 M     4.212 M     5.373 M     5.225 M     5.301 M
+- Depth  512                3.645 M     3.772 M     5.646 M     5.601 M     5.611 M
+                       
+Yield Chain Awaited       808.624 k     1.881 M     4.278 M     4.406 M     4.504 M
+- Depth    2                1.153 M     2.357 M     4.805 M     4.958 M     5.041 M
+- Depth   16                1.777 M     4.212 M     5.926 M     5.978 M     5.987 M
+- Depth   64                2.301 M     4.715 M     6.206 M     6.372 M     5.720 M
+- Depth  512                2.545 M     5.325 M     6.185 M     5.936 M     5.462 M
+                       
+Async Chain Awaited       592.889 k   897.167 k     3.081 M     3.439 M     3.518 M
+- Depth    2                1.067 M     1.388 M     4.764 M     4.877 M     5.192 M
+- Depth   16                2.040 M     3.782 M     7.985 M     7.971 M     7.937 M
+- Depth   64                2.099 M     4.297 M     8.444 M     8.477 M     8.566 M
+- Depth  512                2.221 M     4.565 M     6.585 M     6.914 M     7.995 M
+                       
+Async Chain Return        547.907 k   936.226 k     3.588 M     3.379 M     3.602 M
+- Depth    2                1.258 M     1.698 M     7.458 M     7.264 M     6.937 M
+- Depth   16               10.433 M    11.505 M    58.364 M    58.180 M    53.440 M
+- Depth   64               41.913 M    30.086 M   225.068 M   186.112 M   181.087 M
+- Depth  512              293.857 M   163.627 M     1.229 B     1.118 B   571.817 M
+                       
+Sync Chain Awaited         27.920 M    55.827 M   103.603 M   106.069 M   101.552 M
+- Depth    2               29.483 M    58.517 M   106.378 M   105.173 M   104.088 M
+- Depth   16               21.292 M    42.062 M    72.892 M    76.854 M    75.315 M
+- Depth   64               19.241 M    38.882 M    71.613 M    71.951 M    69.899 M
+- Depth  512               18.582 M    38.044 M    69.779 M    70.000 M    68.339 M
+                       
+CachedTask Chain Await     23.531 M    47.935 M    84.763 M    87.384 M    83.791 M
+- Depth    2               26.462 M    53.284 M    97.192 M    98.533 M    92.412 M
+- Depth   16               20.721 M    40.831 M    74.325 M    57.111 M    73.544 M
+- Depth   64               18.701 M    38.360 M    70.156 M    70.340 M    68.804 M
+- Depth  512               18.642 M    37.742 M    67.888 M    68.270 M    66.448 M
+                       
+CachedTask Chain Check    113.693 M   222.079 M   408.407 M   413.653 M   344.156 M
+- Depth    2              137.873 M   269.402 M   507.274 M   466.158 M   380.603 M
+- Depth   16              152.494 M   299.149 M   551.221 M   548.889 M   457.095 M
+- Depth   64               89.914 M   178.759 M   327.422 M   294.032 M   271.894 M
+- Depth  512               80.811 M   162.357 M   303.450 M   300.472 M   262.223 M
+                       
+CachedTask Chain Return   121.164 M   233.218 M   455.633 M   441.194 M   379.644 M
+- Depth    2              199.925 M   392.126 M   764.736 M   720.552 M   572.742 M
+- Depth   16              579.875 M     1.089 B     1.999 B     1.877 B     1.034 B
+- Depth   64              942.659 M     1.715 B     3.171 B     2.628 B     1.303 B
+- Depth  512                1.443 B     2.556 B     4.031 B     3.256 B     1.321 B
+                       
+QUWI Local Queues          10.847 M    11.131 M     9.960 M    11.992 M    12.668 M
+- Depth    2                9.732 M     8.540 M     9.135 M     9.636 M     9.795 M
+- Depth   16                9.924 M     9.984 M    10.036 M    10.168 M    10.111 M
+- Depth   64               10.374 M    10.372 M    10.424 M    10.277 M    10.342 M
+- Depth  512               10.213 M    10.468 M    10.427 M    10.407 M    10.385 M
 ```
