@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -54,7 +55,9 @@ namespace ThreadPoolTest2
             await TestSetAsync("QUWI No Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
             await TestSetAsync("SubTasks", (d, l) => SubTaskChain(d, l), batch, limit, sw);
             await TestSetAsync("SubTasks Awaited", (d, l) => SubTaskAwaitedChain(d, l), batch, limit, sw);
-            await TestSetAsync("QUWI Local Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
+            await TestSetAsync("SubTasks Fanout", (d, l) => SubTaskFanout(d, l), batch, limit, sw);
+            await TestSetAsync("Continuation Chain", (d, l) => ContinuationChain(d, l), batch, limit, sw);
+            await TestSetAsync("Continuation Fanout", (d, l) => ContinuationFanout(d, l), batch, limit, sw);
             await TestSetAsync("Yielding Await", (d, l) => YieldingAwaitChain(d, l), batch, limit, sw);
             await TestSetAsync("Async Awaited", (d, l) => AsyncAwaitedChain(d, l), batch, limit, sw);
             await TestSetAsync("Async PassThrough", (d, l) => AsyncPassThroughChain(d, l), batch, limit, sw);
@@ -62,6 +65,7 @@ namespace ThreadPoolTest2
             await TestSetAsync("CachedTask Awaited", (d, l) => CachedTaskAwaitedChain(d, l), batch, limit, sw);
             await TestSetAsync("CachedTask CheckAwait", (d, l) => CachedTaskCheckAwaitChain(d, l), batch, limit, sw);
             await TestSetAsync("CachedTask PassThrough", (d, l) => CachedTaskPassThroughChain(d, l), batch, limit, sw);
+            await TestSetAsync("QUWI Local Queues", (d, l) => QUWICallChain(d, l), batch, limit, sw);
 
         }
 
@@ -145,7 +149,9 @@ namespace ThreadPoolTest2
                 return;
             }
 
-            await YieldingAwait(depth - 1);
+            var t = YieldingAwait(depth - 1);
+            await Task.Yield();
+            await t;
         }
 
         private static async Task CompletedAwaitedChain(int depth, long count)
@@ -318,6 +324,71 @@ namespace ThreadPoolTest2
             await Task.Run(() => SubTaskAwaitedAsync(depth - 1));
         }
 
+        private static async Task SubTaskFanout(int depth, long count)
+        {
+            var total = count / depth;
+            for (var i = 0L; i < total; i++)
+            {
+                await SubTaskFanoutAsync(depth);
+            }
+        }
+
+        static Func<Task> YieldAction = async () => await Task.Yield();
+        private async static Task SubTaskFanoutAsync(int depth)
+        {
+            var tasks = new Task[depth];
+
+            for (var i = 0; i < tasks.Length; i++)
+            {
+                tasks[i] = Task.Run(YieldAction);
+            }
+
+            await Task.WhenAll(tasks);
+        }
+
+        private static async Task ContinuationChain(int depth, long count)
+        {
+            var total = count / depth;
+            for (var i = 0L; i < total; i++)
+            {
+                await ContinuationChainAsync(depth);
+            }
+        }
+
+        private static Task ContinuationChainAsync(int depth)
+        {
+            var task = Task.Run(YieldAction);
+
+            for (var i = 0; i < depth; i++)
+            {
+                task = task.ContinueWith((t) => { }, TaskContinuationOptions.RunContinuationsAsynchronously);
+            }
+
+            return task;
+        }
+
+        private static async Task ContinuationFanout(int depth, long count)
+        {
+            var total = count / depth;
+            for (var i = 0L; i < total; i++)
+            {
+                await ContinuationFanoutAsync(depth);
+            }
+        }
+
+        private async static Task ContinuationFanoutAsync(int depth)
+        {
+            var tasks = new Task[depth];
+            var task = Task.Run(YieldAction);
+
+            for (var i = 0; i < depth; i++)
+            {
+                tasks[i] = task.ContinueWith((t) => { }, TaskContinuationOptions.RunContinuationsAsynchronously);
+            }
+
+            await Task.WhenAll(tasks);
+        }
+
         // Testing stuff
 
         private static async Task TestSetAsync(string testName, Func<int, long, Task> testAsync, int batchBeforeGC, long total, Stopwatch sw)
@@ -352,9 +423,12 @@ namespace ThreadPoolTest2
             for (var i = 0; i < loops; i++)
             {
                 GC.Collect();
+                var gcLatency = GCSettings.LatencyMode;
+                GCSettings.LatencyMode = GCLatencyMode.LowLatency;
                 sw.Start();
                 await ParallelTestAsync(testAsync, batchBeforeGC, depth, dop);
                 sw.Stop();
+                GCSettings.LatencyMode = gcLatency;
             }
             sw.Stop();
             var time = $"{PerSecond(total / sw.Elapsed.TotalSeconds)}";
