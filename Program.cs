@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Runtime;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -120,14 +121,21 @@ namespace ThreadPoolTest2
             return semaphore.WaitAsync();
         }
 
+        [StructLayout(LayoutKind.Explicit, Size = 128)]
+        struct Counter
+        {
+            [FieldOffset(64)]
+            public long Count;
+        }
+
         private static Task QueueUserWorkItemState(long count)
         {
             var obj = new object();
             var semaphore = new SemaphoreSlim(0);
-            var remaining = count;
+            var remaining = new Counter() { Count = count };
             for (var i = 0; i < count; i++)
             {
-                ThreadPool.QueueUserWorkItem((o) => { var c = Interlocked.Decrement(ref remaining); if (c == 0) semaphore.Release(); }, obj);
+                ThreadPool.QueueUserWorkItem((o) => { var c = Interlocked.Decrement(ref remaining.Count); if (c == 0) semaphore.Release(); }, obj);
             }
             return semaphore.WaitAsync();
         }
