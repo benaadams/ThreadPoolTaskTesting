@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.InteropServices;
@@ -10,7 +12,12 @@ namespace ThreadPoolTest2
     public class Program
     {
         static int[] dopSet = { 1, 2, 16, 64, 512 };
-        const int Column1 = 23;
+        static bool[] booleans = { true, false };
+        const int Column1 = 28;
+        static TaskFactory nonTpFactory = new TaskFactory(
+            CancellationToken.None,
+            TaskCreationOptions.HideScheduler, TaskContinuationOptions.HideScheduler,
+            new DedicatedThreadsTaskScheduler(dopSet[dopSet.Length - 1]));
 
         public static void Main(string[] args)
         {
@@ -66,8 +73,6 @@ namespace ThreadPoolTest2
             await TestSetAsync("CachedTask Chain Await", (d, l) => CachedTaskChainAwaitedRepeat(d, l), batch, limit, sw);
             await TestSetAsync("CachedTask Chain Check", (d, l) => CachedTaskChainCheckedRepeat(d, l), batch, limit, sw);
             await TestSetAsync("CachedTask Chain Return", (d, l) => CachedTaskChainReturnRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("QUWI Local Queues", (d, l) => QUWICallChainRepeat(d, l), batch, limit, sw);
-
         }
 
         private class QUWICounter
@@ -400,27 +405,32 @@ namespace ThreadPoolTest2
 
         private static async Task TestSetAsync(string testName, Func<int, long, Task> testAsync, int batchBeforeGC, long total, Stopwatch sw)
         {
-            foreach (var depth in dopSet)
+            foreach (var dopFromPool in booleans)
             {
-                if (depth == 1)
+                foreach (var depth in dopSet)
                 {
-                    Console.Write(testName.Substring(0, Math.Min(Column1, testName.Length)) + new string(' ', Math.Max(0, Column1 - testName.Length)));
-                }
-                else
-                {
-                    var depthText = $"- Depth {depth,4}";
-                    Console.Write(depthText + new string(' ', Column1 - depthText.Length));
-                }
-                for (var i = 0; i < dopSet.Length; i++)
-                {
-                    await TestAsync(testName, testAsync, batchBeforeGC, depth, dopSet[i], total, sw);
+                    if (depth == 1)
+                    {
+                        string name = dopFromPool ? testName + " (TP)" : testName;
+                        Console.Write(name.Substring(0, Math.Min(Column1, name.Length)) + new string(' ', Math.Max(0, Column1 - name.Length)));
+                    }
+                    else
+                    {
+                        var depthText = $"- Depth {depth,4}";
+                        Console.Write(depthText + new string(' ', Column1 - depthText.Length));
+                    }
+                    for (var i = 0; i < dopSet.Length; i++)
+                    {
+                        await TestAsync(testName, testAsync, batchBeforeGC, depth, dopSet[i], dopFromPool, total, sw);
+                    }
+                    Console.WriteLine();
                 }
                 Console.WriteLine();
             }
             Console.WriteLine();
         }
 
-        private static async Task TestAsync(string testName, Func<int, long, Task> testAsync, int batchBeforeGC, int depth, int dop, long total, Stopwatch sw)
+        private static async Task TestAsync(string testName, Func<int, long, Task> testAsync, int batchBeforeGC, int depth, int dop, bool dopFromPool, long total, Stopwatch sw)
         {
             await testAsync(depth, dopSet[dopSet.Length -1] * dopSet[dopSet.Length - 1]);
 
@@ -433,7 +443,7 @@ namespace ThreadPoolTest2
                 var gcLatency = GCSettings.LatencyMode;
                 GCSettings.LatencyMode = GCLatencyMode.LowLatency;
                 sw.Start();
-                await ParallelTestAsync(testAsync, batchBeforeGC, depth, dop);
+                await ParallelTestAsync(testAsync, batchBeforeGC, depth, dop, dopFromPool);
                 sw.Stop();
                 GCSettings.LatencyMode = gcLatency;
             }
@@ -442,20 +452,15 @@ namespace ThreadPoolTest2
             Console.Write(new string(' ', 12 - time.Length) + time);
         }
 
-        private async static Task ParallelTestAsync(Func<int, long, Task> testAsync, long count, int depth, int dop)
+        private async static Task ParallelTestAsync(Func<int, long, Task> testAsync, long count, int depth, int dop, bool dopFromPool)
         {
-            if (dop == 1)
-            {
-                await testAsync(depth, count);
-                return;
-            }
-
             var tasks = new Task[dop];
             var subCount = Math.Max(1L, count / dop);
 
             for (var i = 0; i < dop; i++)
             {
-                tasks[i] = Task.Run(()=> testAsync(depth, subCount));
+                Action body = () => testAsync(depth, subCount);
+                tasks[i] = dopFromPool ? Task.Run(body) : nonTpFactory.StartNew(body);
             }
             for (var i = 0; i < dop; i++)
             {
@@ -482,6 +487,29 @@ namespace ThreadPoolTest2
                 return (perSecond / 1000.0).ToString("#0.000") + " k";
             }
             return (perSecond / 1000.0).ToString("#0.000") + "  ";
+        }
+
+        private sealed class DedicatedThreadsTaskScheduler : TaskScheduler
+        {
+            private readonly BlockingCollection<Task> _tasks = new BlockingCollection<Task>();
+
+            public DedicatedThreadsTaskScheduler(int numThreads)
+            {
+                for (int i = 0; i < numThreads; i++)
+                {
+                    new Thread(() =>
+                    {
+                        foreach (Task t in _tasks.GetConsumingEnumerable()) TryExecuteTask(t);
+                    })
+                    { IsBackground = true }.Start();
+                }
+            }
+
+            protected override void QueueTask(Task task) => _tasks.Add(task);
+
+            protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued) => TryExecuteTask(task);
+
+            protected override IEnumerable<Task> GetScheduledTasks() => _tasks;
         }
     }
 }
