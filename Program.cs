@@ -456,10 +456,10 @@ namespace ThreadPoolTest2
         {
             var tasks = new Task[dop];
             var subCount = Math.Max(1L, count / dop);
+            Func<Task> body = () => testAsync(depth, subCount);
 
             for (var i = 0; i < dop; i++)
             {
-                Action body = () => testAsync(depth, subCount);
                 tasks[i] = dopFromPool ? Task.Run(body) : nonTpFactory.StartNew(body);
             }
             for (var i = 0; i < dop; i++)
