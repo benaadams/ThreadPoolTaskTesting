@@ -460,7 +460,7 @@ namespace ThreadPoolTest2
 
             for (var i = 0; i < dop; i++)
             {
-                tasks[i] = dopFromPool ? Task.Run(body) : nonTpFactory.StartNew(body);
+                tasks[i] = dopFromPool ? Task.Run(body) : nonTpFactory.StartNew(body).Unwrap();
             }
             for (var i = 0; i < dop; i++)
             {
