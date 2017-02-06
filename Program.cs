@@ -75,6 +75,8 @@ namespace ThreadPoolTest2
             await TestSetAsync("CachedTask Chain Return", (d, l) => CachedTaskChainReturnRepeat(d, l), batch, limit, sw);
         }
 
+
+
         [StructLayout(LayoutKind.Explicit, Size = 128)]
         struct Counter
         {
@@ -84,45 +86,52 @@ namespace ThreadPoolTest2
 
         class CounterBox
         {
-            public Counter Counter;
+            public Counter Count;
             public SemaphoreSlim Semaphore;
         }
-
-        private class QUWIState
+        class DepthBox
         {
-            public CounterBox counter;
-            public int depth;
+            public CounterBox Counter;
+            public int Value;
         }
 
-        static WaitCallback QUWICallback = QUWI;
+        static WaitCallback QUWICallback = (o) => QUWI((DepthBox)o);
 
-        private static void QUWI(object o)
+        private static void QUWI(DepthBox depth)
         {
-            var state = (QUWIState)o;
-            if (state.depth > 0)
+            if (depth.Value > 0)
             {
-                ThreadPool.QueueUserWorkItem(QUWICallback, new QUWIState() { counter = state.counter, depth = state.depth - 1 });
+                ThreadPool.QueueUserWorkItem(QUWICallback, new DepthBox()
+                {
+                    Counter = depth.Counter,
+                    Value = depth.Value - 1
+                });
             }
+            else
+            {
+                var c = Interlocked.Decrement(ref depth.Counter.Count.Count);
 
-            var c = Interlocked.Decrement(ref state.counter.Counter.Count);
-
-            if (c == 0) state.counter.Semaphore.Release();
+                if (c == 0)
+                {
+                    depth.Counter.Semaphore.Release();
+                }
+            }
         }
 
         private static Task QUWICallChainRepeat(int depth, long count)
         {
             var total = count / depth;
-            var semaphore = new SemaphoreSlim(0);
-            var remaining = count;
 
-            var state = new QUWIState()
+            var counter = new CounterBox()
             {
-                counter = new CounterBox()
-                {
-                    Semaphore = semaphore,
-                    Counter = new Counter() { Count = remaining }
-                },
-                depth = depth - 1
+                Count = new Counter() { Count = total },
+                Semaphore = new SemaphoreSlim(0)
+            };
+
+            var state = new DepthBox()
+            {
+                Counter = counter,
+                Value = depth - 1
             };
 
             for (var i = 0; i < total; i++)
@@ -130,27 +139,6 @@ namespace ThreadPoolTest2
                 ThreadPool.QueueUserWorkItem(QUWICallback, state);
             }
 
-            return semaphore.WaitAsync();
-        }
-
-        private static Task QueueUserWorkItemState(long count)
-        {
-            var counter = new CounterBox();
-            counter.Semaphore = new SemaphoreSlim(0);
-            counter.Counter.Count = count;
-            for (var i = 0; i < count; i++)
-            {
-                ThreadPool.QueueUserWorkItem(
-                    (o) => {
-                        var box = (CounterBox)o;
-                        var c = Interlocked.Decrement(ref box.Counter.Count);
-                        if (c == 0)
-                        {
-                            box.Semaphore.Release();
-                        }
-                    }, 
-                    counter);
-            }
             return counter.Semaphore.WaitAsync();
         }
 
