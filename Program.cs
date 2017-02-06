@@ -75,15 +75,22 @@ namespace ThreadPoolTest2
             await TestSetAsync("CachedTask Chain Return", (d, l) => CachedTaskChainReturnRepeat(d, l), batch, limit, sw);
         }
 
-        private class QUWICounter
+        [StructLayout(LayoutKind.Explicit, Size = 128)]
+        struct Counter
         {
-            public SemaphoreSlim semaphore;
-            public long remaining;
+            [FieldOffset(64)]
+            public long Count;
+        }
+
+        class CounterBox
+        {
+            public Counter Counter;
+            public SemaphoreSlim Semaphore;
         }
 
         private class QUWIState
         {
-            public QUWICounter counter;
+            public CounterBox counter;
             public int depth;
         }
 
@@ -97,9 +104,9 @@ namespace ThreadPoolTest2
                 ThreadPool.QueueUserWorkItem(QUWICallback, new QUWIState() { counter = state.counter, depth = state.depth - 1 });
             }
 
-            var c = Interlocked.Decrement(ref state.counter.remaining);
+            var c = Interlocked.Decrement(ref state.counter.Counter.Count);
 
-            if (c == 0) state.counter.semaphore.Release();
+            if (c == 0) state.counter.Semaphore.Release();
         }
 
         private static Task QUWICallChainRepeat(int depth, long count)
@@ -110,10 +117,10 @@ namespace ThreadPoolTest2
 
             var state = new QUWIState()
             {
-                counter = new QUWICounter()
+                counter = new CounterBox()
                 {
-                    semaphore = semaphore,
-                    remaining = remaining
+                    Semaphore = semaphore,
+                    Counter = new Counter() { Count = remaining }
                 },
                 depth = depth - 1
             };
@@ -126,23 +133,25 @@ namespace ThreadPoolTest2
             return semaphore.WaitAsync();
         }
 
-        [StructLayout(LayoutKind.Explicit, Size = 128)]
-        struct Counter
-        {
-            [FieldOffset(64)]
-            public long Count;
-        }
-
         private static Task QueueUserWorkItemState(long count)
         {
-            var obj = new object();
-            var semaphore = new SemaphoreSlim(0);
-            var remaining = new Counter() { Count = count };
+            var counter = new CounterBox();
+            counter.Semaphore = new SemaphoreSlim(0);
+            counter.Counter.Count = count;
             for (var i = 0; i < count; i++)
             {
-                ThreadPool.QueueUserWorkItem((o) => { var c = Interlocked.Decrement(ref remaining.Count); if (c == 0) semaphore.Release(); }, obj);
+                ThreadPool.QueueUserWorkItem(
+                    (o) => {
+                        var box = (CounterBox)o;
+                        var c = Interlocked.Decrement(ref box.Counter.Count);
+                        if (c == 0)
+                        {
+                            box.Semaphore.Release();
+                        }
+                    }, 
+                    counter);
             }
-            return semaphore.WaitAsync();
+            return counter.Semaphore.WaitAsync();
         }
 
         private static async Task YieldAwaitChainRepeat(int depth, long count)
