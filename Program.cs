@@ -75,8 +75,6 @@ namespace ThreadPoolTest2
             await TestSetAsync("CachedTask Chain Return", (d, l) => CachedTaskChainReturnRepeat(d, l), batch, limit, sw);
         }
 
-
-
         [StructLayout(LayoutKind.Explicit, Size = 128)]
         struct Counter
         {
@@ -101,11 +99,8 @@ namespace ThreadPoolTest2
         {
             if (depth.Value > 0)
             {
-                ThreadPool.QueueUserWorkItem(QUWICallback, new DepthBox()
-                {
-                    Counter = depth.Counter,
-                    Value = depth.Value - 1
-                });
+                depth.Value--;
+                ThreadPool.QueueUserWorkItem(QUWICallback, depth);
             }
             else
             {
@@ -128,15 +123,13 @@ namespace ThreadPoolTest2
                 Semaphore = new SemaphoreSlim(0)
             };
 
-            var state = new DepthBox()
-            {
-                Counter = counter,
-                Value = depth - 1
-            };
-
             for (var i = 0; i < total; i++)
             {
-                ThreadPool.QueueUserWorkItem(QUWICallback, state);
+                ThreadPool.QueueUserWorkItem(QUWICallback, new DepthBox()
+                {
+                    Counter = counter,
+                    Value = depth - 1
+                });
             }
 
             return counter.Semaphore.WaitAsync();
