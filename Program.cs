@@ -46,7 +46,7 @@ namespace ThreadPoolTest2
 
         public static async Task MainAsync(long limit, int batch)
         {
-            Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
+            //Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
 
             var sw = Stopwatch.StartNew();
 
@@ -97,6 +97,7 @@ namespace ThreadPoolTest2
 
         private static void QUWI(DepthBox depth)
         {
+
             if (depth.Value > 0)
             {
                 depth.Value--;
