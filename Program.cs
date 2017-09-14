@@ -12,12 +12,12 @@ namespace ThreadPoolTest2
     public class Program
     {
         static int[] dopSet = { 1, 2, 16, 64, 512 };
-        static bool[] booleans = { true, false };
+        static bool[] booleans = { true /*, false */};
         const int Column1 = 28;
-        static TaskFactory nonTpFactory = new TaskFactory(
-            CancellationToken.None,
-            TaskCreationOptions.HideScheduler, TaskContinuationOptions.HideScheduler,
-            new DedicatedThreadsTaskScheduler(dopSet[dopSet.Length - 1]));
+        //static TaskFactory nonTpFactory = new TaskFactory(
+        //    CancellationToken.None,
+        //    TaskCreationOptions.HideScheduler, TaskContinuationOptions.HideScheduler,
+        //    new DedicatedThreadsTaskScheduler(dopSet[dopSet.Length - 1]));
 
         public static void Main(string[] args)
         {
@@ -451,7 +451,7 @@ namespace ThreadPoolTest2
 
             for (var i = 0; i < dop; i++)
             {
-                tasks[i] = dopFromPool ? Task.Run(body) : nonTpFactory.StartNew(body).Unwrap();
+                tasks[i] = Task.Run(body);  /*dopFromPool ? Task.Run(body) : nonTpFactory.StartNew(body).Unwrap();*/
             }
             for (var i = 0; i < dop; i++)
             {
