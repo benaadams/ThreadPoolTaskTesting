@@ -5,4 +5,4 @@ bin/
 obj/
 Properties/AssemblyInfo.cs
 *.user
-.vs/config/applicationhost.config
+.vs/*

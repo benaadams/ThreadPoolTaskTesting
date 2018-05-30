@@ -61,6 +61,7 @@ namespace ThreadPoolTest2
             Console.WriteLine();
 
             await TestSetAsync("QUWI No Queues", (d, l) => QUWICallChainRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("QUWI Queue Local", (d, l) => QUWILocalCallChainRepeat(d, l), batch, limit, sw);
             await TestSetAsync("SubTask Chain Return", (d, l) => SubTaskChainReturnRepeat(d, l), batch, limit, sw);
             await TestSetAsync("SubTask Chain Awaited", (d, l) => SubTaskChainAwaitedRepeat(d, l), batch, limit, sw);
             await TestSetAsync("SubTask Fanout Awaited", (d, l) => SubTaskFanoutAwaitedRepeat(d, l), batch, limit, sw);
@@ -131,6 +132,48 @@ namespace ThreadPoolTest2
                     Counter = counter,
                     Value = depth - 1
                 });
+            }
+
+            return counter.Semaphore.WaitAsync();
+        }
+
+
+        private static void QUWILocal(DepthBox depth)
+        {
+
+            if (depth.Value > 0)
+            {
+                depth.Value--;
+                ThreadPool.QueueUserWorkItem((o) => QUWILocal(o), depth, preferLocal: true);
+            }
+            else
+            {
+                var c = Interlocked.Decrement(ref depth.Counter.Count.Count);
+
+                if (c == 0)
+                {
+                    depth.Counter.Semaphore.Release();
+                }
+            }
+        }
+
+        private static Task QUWILocalCallChainRepeat(int depth, long count)
+        {
+            var total = count / depth;
+
+            var counter = new CounterBox()
+            {
+                Count = new Counter() { Count = total },
+                Semaphore = new SemaphoreSlim(0)
+            };
+
+            for (var i = 0; i < total; i++)
+            {
+                ThreadPool.QueueUserWorkItem((o) => QUWILocal(o), new DepthBox()
+                {
+                    Counter = counter,
+                    Value = depth - 1
+                }, preferLocal: true);
             }
 
             return counter.Semaphore.WaitAsync();
