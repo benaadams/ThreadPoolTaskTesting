@@ -38,7 +38,8 @@ namespace ThreadPoolTest2
             int batch = 512 * 512;
 
 
-            Console.WriteLine($"Testing {limit:N0} calls, with GCs after {batch:N0} calls.");
+            //Console.WriteLine($"Testing {limit:N0} calls, with GCs after {batch:N0} calls.");
+            Console.WriteLine($"Testing {limit:N0} calls.");
             Console.WriteLine($"Operations per second on {Environment.ProcessorCount} Cores");
 
             MainAsync(limit, batch).Wait();
@@ -46,7 +47,7 @@ namespace ThreadPoolTest2
 
         public static async Task MainAsync(long limit, int batch)
         {
-            //Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
+            Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
 
             var sw = Stopwatch.StartNew();
 
@@ -60,20 +61,44 @@ namespace ThreadPoolTest2
             }
             Console.WriteLine();
 
-            await TestSetAsync("QUWI No Queues", (d, l) => QUWICallChainRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("QUWI Queue Local", (d, l) => QUWILocalCallChainRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("SubTask Chain Return", (d, l) => SubTaskChainReturnRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("SubTask Chain Awaited", (d, l) => SubTaskChainAwaitedRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("SubTask Fanout Awaited", (d, l) => SubTaskFanoutAwaitedRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("Continuation Chain", (d, l) => ContinuationChainRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("Continuation Fanout", (d, l) => ContinuationFanoutRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("Yield Chain Awaited", (d, l) => YieldAwaitChainRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("Async Chain Awaited", (d, l) => AsyncChainAwaitedRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("Async Chain Return", (d, l) => AsyncChainReturnRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("Sync Chain Awaited", (d, l) => SyncChainAwaitedRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("CachedTask Chain Await", (d, l) => CachedTaskChainAwaitedRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("CachedTask Chain Check", (d, l) => CachedTaskChainCheckedRepeat(d, l), batch, limit, sw);
-            await TestSetAsync("CachedTask Chain Return", (d, l) => CachedTaskChainReturnRepeat(d, l), batch, limit, sw);
+            Console.WriteLine("Default Context");
+            Console.WriteLine();
+
+            await TestSetAsync("QUWI", (d, l) => QUWICallChainRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("QUWI Local(False)", (d, l) => QUWILocalFalseCallChainRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("QUWI Local(True)", (d, l) => QUWILocalTrueCallChainRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Task.Run Chain", (d, l) => SubTaskChainAwaitedRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Task.Run Fanout (WhenAll)", (d, l) => SubTaskFanoutAwaitedRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Task.Yield Chain", (d, l) => YieldAwaitChainRepeat(d, l), batch, limit, sw);
+
+            Console.WriteLine();
+            Console.WriteLine("Async Locals");
+            Console.WriteLine();
+
+            AsyncLocal<int> asyncLocal1 = new AsyncLocal<int>();
+            asyncLocal1.Value = 1;
+            AsyncLocal<int> asyncLocal2 = new AsyncLocal<int>();
+            asyncLocal2.Value = 2;
+
+            await TestSetAsync("QUWI", (d, l) => QUWICallChainRepeat(d, l), batch, limit, sw);
+            await TestSetAsync("QUWI Local(False)", (d, l) => QUWILocalFalseCallChainRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("QUWI Local(True)", (d, l) => QUWILocalTrueCallChainRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Task.Run Chain", (d, l) => SubTaskChainAwaitedRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Task.Run Fanout (WhenAll)", (d, l) => SubTaskFanoutAwaitedRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Task.Yield Chain", (d, l) => YieldAwaitChainRepeat(d, l), batch, limit, sw);
+
+            Console.WriteLine($"GCs: {GC.CollectionCount(0)} {GC.CollectionCount(1)} {GC.CollectionCount(2)}");
+            
+
+            //await TestSetAsync("SubTask Chain Return", (d, l) => SubTaskChainReturnRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Continuation Chain", (d, l) => ContinuationChainRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Continuation Fanout", (d, l) => ContinuationFanoutRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Async Chain Awaited", (d, l) => AsyncChainAwaitedRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Async Chain Return", (d, l) => AsyncChainReturnRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("Sync Chain Awaited", (d, l) => SyncChainAwaitedRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("CachedTask Chain Await", (d, l) => CachedTaskChainAwaitedRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("CachedTask Chain Check", (d, l) => CachedTaskChainCheckedRepeat(d, l), batch, limit, sw);
+            //await TestSetAsync("CachedTask Chain Return", (d, l) => CachedTaskChainReturnRepeat(d, l), batch, limit, sw);
         }
 
         [StructLayout(LayoutKind.Explicit, Size = 128)]
@@ -137,14 +162,15 @@ namespace ThreadPoolTest2
             return counter.Semaphore.WaitAsync();
         }
 
+        static Action<DepthBox> QUWILocalFalseCallback = (o) => QUWILocalFalse(o);
 
-        private static void QUWILocal(DepthBox depth)
+        private static void QUWILocalFalse(DepthBox depth)
         {
 
             if (depth.Value > 0)
             {
                 depth.Value--;
-                ThreadPool.QueueUserWorkItem((o) => QUWILocal(o), depth, preferLocal: true);
+                ThreadPool.QueueUserWorkItem(QUWILocalFalseCallback, depth, preferLocal: false);
             }
             else
             {
@@ -157,7 +183,7 @@ namespace ThreadPoolTest2
             }
         }
 
-        private static Task QUWILocalCallChainRepeat(int depth, long count)
+        private static Task QUWILocalFalseCallChainRepeat(int depth, long count)
         {
             var total = count / depth;
 
@@ -169,7 +195,50 @@ namespace ThreadPoolTest2
 
             for (var i = 0; i < total; i++)
             {
-                ThreadPool.QueueUserWorkItem((o) => QUWILocal(o), new DepthBox()
+                ThreadPool.QueueUserWorkItem(QUWILocalFalseCallback, new DepthBox()
+                {
+                    Counter = counter,
+                    Value = depth - 1
+                }, preferLocal: false);
+            }
+
+            return counter.Semaphore.WaitAsync();
+        }
+
+        static Action<DepthBox> QUWILocalTrueCallback = (o) => QUWILocalTrue(o);
+
+        private static void QUWILocalTrue(DepthBox depth)
+        {
+
+            if (depth.Value > 0)
+            {
+                depth.Value--;
+                ThreadPool.QueueUserWorkItem(QUWILocalTrueCallback, depth, preferLocal: true);
+            }
+            else
+            {
+                var c = Interlocked.Decrement(ref depth.Counter.Count.Count);
+
+                if (c == 0)
+                {
+                    depth.Counter.Semaphore.Release();
+                }
+            }
+        }
+
+        private static Task QUWILocalTrueCallChainRepeat(int depth, long count)
+        {
+            var total = count / depth;
+
+            var counter = new CounterBox()
+            {
+                Count = new Counter() { Count = total },
+                Semaphore = new SemaphoreSlim(0)
+            };
+
+            for (var i = 0; i < total; i++)
+            {
+                ThreadPool.QueueUserWorkItem(QUWILocalTrueCallback, new DepthBox()
                 {
                     Counter = counter,
                     Value = depth - 1
@@ -445,7 +514,7 @@ namespace ThreadPoolTest2
                 {
                     if (depth == 1)
                     {
-                        string name = dopFromPool ? testName + " (TP)" : testName;
+                        string name = testName; // dopFromPool ? testName + " (TP)" : testName;
                         Console.Write(name.Substring(0, Math.Min(Column1, name.Length)) + new string(' ', Math.Max(0, Column1 - name.Length)));
                     }
                     else
@@ -469,17 +538,17 @@ namespace ThreadPoolTest2
             await testAsync(depth, dopSet[dopSet.Length -1] * dopSet[dopSet.Length - 1]);
 
             var loops = Math.Max(total / batchBeforeGC, 1);
-            GC.Collect();
+            //GC.Collect();
             sw.Reset();
             for (var i = 0; i < loops; i++)
             {
-                GC.Collect();
-                var gcLatency = GCSettings.LatencyMode;
-                GCSettings.LatencyMode = GCLatencyMode.LowLatency;
+                //GC.Collect();
+                //var gcLatency = GCSettings.LatencyMode;
+                //GCSettings.LatencyMode = GCLatencyMode.LowLatency;
                 sw.Start();
                 await ParallelTestAsync(testAsync, batchBeforeGC, depth, dop, dopFromPool);
                 sw.Stop();
-                GCSettings.LatencyMode = gcLatency;
+                //GCSettings.LatencyMode = gcLatency;
             }
             sw.Stop();
             var time = $"{PerSecond(total / sw.Elapsed.TotalSeconds)}";
